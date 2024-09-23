@@ -1,5 +1,6 @@
-import { Client, LocalAuth } from "whatsapp-web.js";
+import { Elysia, t } from "elysia";
 import qrcode from "qrcode-terminal";
+import { Client, LocalAuth } from "whatsapp-web.js";
 
 // create user on db
 function createUser(userID: string) {
@@ -101,3 +102,18 @@ client.on("message_create", (message) => {
 
 // Start your client
 client.initialize();
+
+const app = new Elysia();
+app.get("/", "Hello Elysia");
+app.get("/users", () => Array.from(db.keys()));
+app.get("/users/:id/", ({ params: { id } }) => db.get(id));
+app.post(
+	"/users/:id/message",
+	({ params: { id }, body: { message } }) => client.sendMessage(id, message),
+	{
+		body: t.Object({
+			message: t.String({ minLength: 1 }),
+		}),
+	},
+);
+app.listen(3000);
