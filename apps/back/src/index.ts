@@ -57,12 +57,13 @@ client.on("message_create", (message) => {
 	if (message.fromMe) return;
 
 	const user = getOrCreateUser(message.from);
+	user.messages.push(`CLIENTE: ${message.body}`);
 
 	if (user.status === 0) {
 		const toSend = "<Menu>";
 		user.status = 1;
 		client.sendMessage(message.from, toSend);
-		user.messages = [toSend];
+		user.messages = [`CLIENTE: ${message.body}`, `SISTEMA: ${toSend}`];
 		updateUser(message.from, user);
 	} else if (user.status === 1) {
 		if (message.body === "1") {
@@ -70,12 +71,12 @@ client.on("message_create", (message) => {
 
 			user.status = 2;
 			client.sendMessage(message.from, toSend);
-			user.messages.push(toSend);
+			user.messages.push(`SISTEMA: ${toSend}`);
 			updateUser(message.from, user);
 		} else {
 			const toSend = "?";
 			client.sendMessage(message.from, toSend);
-			user.messages.push(toSend);
+			user.messages.push(`SISTEMA: ${toSend}`);
 			updateUser(message.from, user);
 		}
 	} else if (user.status === 2) {
@@ -83,7 +84,7 @@ client.on("message_create", (message) => {
 			const toSend = "<Attending>";
 			user.status = 3;
 			client.sendMessage(message.from, toSend);
-			user.messages.push(toSend);
+			user.messages.push(`SISTEMA: ${toSend}`);
 			updateUser(message.from, user);
 		}
 	} else if (user.status === 3) {
@@ -93,8 +94,8 @@ client.on("message_create", (message) => {
 			user.messages = [];
 			updateUser(message.from, user);
 		} else {
-			client.sendMessage(message.from, message.body);
-			user.messages.push(message.body);
+			// client.sendMessage(message.from, message.body);
+			// user.messages.push(message.body);
 			updateUser(message.from, user);
 		}
 	}
@@ -109,11 +110,38 @@ app.get("/users", () => Array.from(db.keys()));
 app.get("/users/:id/", ({ params: { id } }) => db.get(id));
 app.post(
 	"/users/:id/message",
-	({ params: { id }, body: { message } }) => client.sendMessage(id, message),
+	({ params: { id }, body: { message } }) => {
+		const user = db.get(id) as unknown as {
+			name: string;
+			status: number;
+			messages: string[];
+		};
+
+		client.sendMessage(id, message);
+		user.messages.push(`ATENDENTE: ${message}`);
+	},
 	{
 		body: t.Object({
 			message: t.String({ minLength: 1 }),
 		}),
 	},
 );
+app.patch(
+	"/users/:id/status",
+	({ params: { id }, body: { status } }) => {
+		const user = db.get(id) as unknown as {
+			name: string;
+			status: number;
+			messages: string[];
+		};
+		user.status = status;
+		db.set(id, user);
+	},
+	{
+		body: t.Object({
+			status: t.Number({ minimum: 0, maximum: 3 }),
+		}),
+	},
+);
+
 app.listen(3000);
